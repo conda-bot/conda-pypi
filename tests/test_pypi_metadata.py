@@ -19,7 +19,7 @@ def test_pypi_to_repodata_requires_none_any_wheel():
     assert pypi_to_repodata(pypi_data) is None
 
 
-def test_pypi_to_repodata_includes_pep508_dependency_extras():
+def test_pypi_to_repodata_includes_CEP44_dependency_extras():
     pypi_data = {
         "urls": [
             {
@@ -38,7 +38,7 @@ def test_pypi_to_repodata_includes_pep508_dependency_extras():
     }
     entry = pypi_to_repodata(pypi_data)
     assert entry is not None
-    assert any("httpx[cli]>=" in d for d in entry["depends"])
+    assert any("httpx>=0.24[extras=[cli]]" in d for d in entry["depends"])
 
 
 def test_pypi_to_repodata_entry_minimal():
