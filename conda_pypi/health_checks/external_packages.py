@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from conda.base.constants import OK_MARK, X_MARK
 from conda.common.constants import NULL
 from conda.core.prefix_data import PrefixData
+from conda.exceptions import CondaError
 from conda.models.records import PrefixRecord
 
 if TYPE_CHECKING:
@@ -35,7 +36,7 @@ def print_external_packages(prefix: str, verbose: bool) -> None:
         print(f"{X_MARK} These packages are not installed by conda:\n")
         for package in external_packages:
             print(package.name, package.version)
-        print("")
+        print()
 
 
 def conda_has_package(name: str) -> bool:
@@ -158,7 +159,7 @@ def migrate_to_conda(prefix: str, args: Namespace, confirm: ConfirmCallback) -> 
             safe_pkgs_conda_names,
             force_reinstall=True,
         )
-    except Exception as e:
+    except CondaError as e:
         print(f"Failed to reinstall packages with conda: {e}")
         return 1
 

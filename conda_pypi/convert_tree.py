@@ -8,8 +8,9 @@ import logging
 import pathlib
 import re
 import tempfile
+from collections.abc import Iterable
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from conda.core.solve import Solver
@@ -59,10 +60,10 @@ def parse_rattler_solver_error(message: str):
 class ConvertTree:
     def __init__(
         self,
-        prefix: Optional[Union[pathlib.Path, str]],
+        prefix: pathlib.Path | str | None,
         override_channels=False,
-        repo: Optional[pathlib.Path] = None,
-        finder: Optional[PackageFinder] = None,  # to change index_urls e.g.
+        repo: pathlib.Path | None = None,
+        finder: PackageFinder | None = None,  # to change index_urls e.g.
     ):
         # platformdirs location has a space in it; ok?
         # will be expanded to %20 in "as uri" output, conda understands that.
@@ -131,7 +132,7 @@ class ConvertTree:
                         is_editable=False,
                         channels=channels,
                     )
-                    log.debug("Conda at", package_conda)
+                    log.debug("Conda at %s", package_conda)
                 except FileExistsError:
                     log.debug(
                         f"Tried to convert wheel that is already conda-ized: {normal_wheel}",
@@ -174,7 +175,7 @@ class ConvertTree:
         )
 
     def convert_tree(
-        self, requested: List[MatchSpec], max_attempts: int = 80
+        self, requested: list[MatchSpec], max_attempts: int = 80
     ) -> tuple[tuple[PrefixRecord, ...], tuple[PrefixRecord, ...]] | None:
         """
         Preform a solve on the list of requested packages and converts the full dependency
@@ -236,13 +237,15 @@ class ConvertTree:
                 "CONDA_AUTO_UPDATE_CONDA": "false",
             }
 
-            with get_spinner(self._get_converting_spinner_message(channels)):
-                with fresh_context(env=context_env):
-                    changes = self._convert_loop(
-                        max_attempts=max_attempts,
-                        solver=solver,
-                        tmp_path=tmp_path,
-                        channels=build_channels,
-                    )
+            with (
+                get_spinner(self._get_converting_spinner_message(channels)),
+                fresh_context(env=context_env),
+            ):
+                changes = self._convert_loop(
+                    max_attempts=max_attempts,
+                    solver=solver,
+                    tmp_path=tmp_path,
+                    channels=build_channels,
+                )
 
             return changes

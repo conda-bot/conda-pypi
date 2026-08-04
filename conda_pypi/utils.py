@@ -4,9 +4,9 @@ import base64
 import hashlib
 import os
 import sys
+from collections.abc import Iterator
 from logging import getLogger
 from pathlib import Path
-from typing import Iterator
 
 from conda.base.context import context, locate_prefix_by_name
 from conda.models.match_spec import MatchSpec
@@ -39,7 +39,7 @@ def sha256_base64url_to_hex(value: str | None) -> str | None:
         return None
 
 
-def get_prefix(prefix: os.PathLike = None, name: str = None) -> Path:
+def get_prefix(prefix: os.PathLike | None = None, name: str | None = None) -> Path:
     if prefix:
         return Path(prefix)
     elif name:
