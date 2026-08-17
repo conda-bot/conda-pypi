@@ -7,9 +7,11 @@ from pathlib import Path
 
 from conda.base.context import context
 from conda.cli.main import main_subshell
+from conda.core.path_actions import Action
 from conda.core.prefix_data import PrefixData
 from conda.exceptions import CondaError
 from conda.models.match_spec import MatchSpec
+from conda.models.records import PackageRecord
 from packaging.version import Version
 
 from conda_pypi.python_paths import (
@@ -119,21 +121,37 @@ def ensure_target_env_has_externally_managed(command: str):
         raise ValueError(f"command {command} not recognized.")
 
 
-def notify_externally_managed_future(command: str):
+def _package_names(precs: Iterable[PackageRecord] | None) -> set[str]:
+    if not precs:
+        return set()
+    return {prec.name for prec in precs}
+
+
+def pip_newly_linked(
+    link_precs: Iterable[PackageRecord] | None, unlink_precs: Iterable[PackageRecord] | None
+) -> bool:
+    """True when this transaction links pip without unlinking an existing pip."""
+    return "pip" in _package_names(link_precs) and "pip" not in _package_names(unlink_precs)
+
+
+def notify_conda_pypi_tip(
+    target_prefix: str | None = None,
+    link_precs: Iterable[PackageRecord] | None = None,
+    unlink_precs: Iterable[PackageRecord] | None = None,
+) -> None:
     """
-    Beta-period post-command hook that points pip users to the conda-pypi beta.
+    Notice that points users to conda-pypi when pip is newly installed.
     """
     # Build environments are ephemeral; never show user-facing notices.
     if os.environ.get("CONDA_BUILD_STATE") == "BUILD":
         return
     # Only notify in non-base environments where pip interop is relevant.
     base_prefix = Path(context.conda_prefix)
-    target_prefix = Path(context.target_prefix)
-    if base_prefix == target_prefix or base_prefix.resolve() == target_prefix.resolve():
+    prefix = Path(target_prefix or context.target_prefix)
+    if base_prefix == prefix or base_prefix.resolve() == prefix.resolve():
         return
-    # No point showing the beta tip if pip isn't installed.
-    prefix_data = PrefixData(target_prefix)
-    if not list(prefix_data.query("pip")):
+    # Only when this transaction newly links pip (not upgrades or already-present pip).
+    if not pip_newly_linked(link_precs, unlink_precs):
         return
 
     if context.plugins.conda_pypi_pip_warning:
@@ -143,3 +161,27 @@ def notify_externally_managed_future(command: str):
             "  using the conda-pypi beta. Get started:\n"
             "    https://docs.conda.io/projects/conda/en/stable/new-features.html\n"
         )
+
+
+class NotifyCondaPypiTipAction(Action):
+    """Post-transaction action that shows the conda-pypi usage tip."""
+
+    def verify(self):
+        self._verified = True
+
+    def execute(self):
+        # A notice must never fail or reverse a successful install.
+        try:
+            notify_conda_pypi_tip(
+                target_prefix=self.target_prefix,
+                link_precs=self.link_precs,
+                unlink_precs=self.unlink_precs,
+            )
+        except Exception:
+            logger.debug("Failed to emit conda-pypi pip beta tip", exc_info=True)
+
+    def reverse(self):
+        return None
+
+    def cleanup(self):
+        return None
