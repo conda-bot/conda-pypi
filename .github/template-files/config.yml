@@ -22,9 +22,9 @@ conda/infrastructure:
     with:
       tests_workflow: Test
 
-  # [optional] validate .authors.yml on PRs
-  - src: templates/workflows/check-authors.yml
-    dst: .github/workflows/check-authors.yml
+  # remove check-authors workflow if it has already been synced
+  - dst: .github/workflows/check-authors.yml
+    remove: true
 
   # [optional] keep .authors.yml current (weekly PR)
   - src: templates/workflows/prepare-authors.yml
